@@ -1,0 +1,37 @@
+name: Compile Custom SQLite with R-Tree
+
+on:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build-sqlite:
+    runs-on: windows-latest  # یا ubuntu-latest بسته به نیاز
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Download SQLite Amalgamation Source
+      run: |
+        Invoke-WebRequest -Uri "https://www.sqlite.org/2024/sqlite-amalgamation-3450300.zip" -OutFile "sqlite.zip"
+        Expand-Archive -Path "sqlite.zip" -DestinationPath "."
+        Move-Item "sqlite-amalgamation-*" "sqlite_src"
+
+    - name: Compile SQLite with R-Tree on Windows (MSVC)
+      shell: cmd
+      run: |
+        call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=x64
+        cd sqlite_src
+        cl /O2 /DSQLITE_ENABLE_RTREE=1 /DSQLITE_ENABLE_JSON1=1 /DSQLITE_ENABLE_FTS5=1 -LD sqlite3.c -Fesqlite3.dll
+
+    - name: Upload Compiled DLL as Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: custom-sqlite-dll
+        path: sqlite_src/sqlite3.dll
